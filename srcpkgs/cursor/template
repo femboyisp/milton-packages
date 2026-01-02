@@ -1,0 +1,135 @@
+# Template file for 'cursor'
+pkgname=cursor
+version=2.2.44
+revision=1
+_build_id="20adc1003928b0f1b99305dbaf845656ff81f5d4"
+archs="x86_64 aarch64"
+hostmakedepends="tar"
+depends="at-spi2-core libsecret alsa-lib cairo gtk+3 libdrm libX11
+ libxcb libXcomposite libXdamage libXext libXfixes libxkbcommon libxkbfile
+ libXrandr libXScrnSaver pango nss libcurl dbus mesa xdg-utils
+ libglvnd expat"
+short_desc="AI-first coding environment"
+maintainer="Zoa Hickenlooper <zoa@router.sex>"
+license="custom:Proprietary"
+homepage="https://www.cursor.com/"
+changelog="https://www.cursor.com/changelog"
+repository=nonfree
+restricted=yes
+nostrip=yes
+noshlibprovides=yes
+allow_unknown_shlibs=yes
+skiprdeps="/usr/lib/cursor/resources/app"
+
+case "$XBPS_TARGET_MACHINE" in
+	x86_64)
+		distfiles="https://downloads.cursor.com/production/${_build_id}/linux/x64/Cursor-${version}-x86_64.AppImage"
+		checksum="862b742fabc4f3dde33eae1042ab5e4fa4f4f218215f9844fcd64b5164eaaaf6"
+		;;
+	aarch64)
+		distfiles="https://downloads.cursor.com/production/${_build_id}/linux/arm64/Cursor-${version}-aarch64.AppImage"
+		checksum="0f6a5c7f0cd1103fd36060010a8f37608e20efbb6edf182faa33a8f17b2d7920"
+		;;
+	*)
+		broken="Cursor is only available for x86_64 and aarch64"
+		;;
+esac
+
+do_extract() {
+	install -m755 ${XBPS_SRCDISTDIR}/${pkgname}-${version}/Cursor-${version}-*.AppImage ${wrksrc}/cursor.AppImage
+	cd ${wrksrc}
+	./cursor.AppImage --appimage-extract >/dev/null
+	mv squashfs-root/usr/share/cursor/* .
+	mkdir -p usr_share
+	mv squashfs-root/usr/share/* usr_share/
+	rm -rf squashfs-root
+}
+
+post_extract() {
+	# Disable update server
+	vsed -i -e '/updateUrl/d' resources/app/product.json
+
+	# Remove unwanted language packs (optional - keeps common ones)
+	cd locales
+	# Keep only en-US, you can add more if needed
+	for lang in *.pak; do
+		case $lang in
+			en-US.pak|en-GB.pak) ;;
+			*) rm -f "$lang" ;;
+		esac
+	done
+	cd ..
+}
+
+do_install() {
+	vmkdir usr/lib/cursor
+	vcopy resources usr/lib/cursor/
+	vcopy chrome_crashpad_handler usr/lib/cursor/
+	vcopy chrome-sandbox usr/lib/cursor/
+	vcopy cursor usr/lib/cursor/
+	vcopy libEGL.so usr/lib/cursor/
+	vcopy libffmpeg.so usr/lib/cursor/
+	vcopy libGLESv2.so usr/lib/cursor/
+	vcopy libvk_swiftshader.so usr/lib/cursor/
+	vcopy libvulkan.so* usr/lib/cursor/
+	vcopy locales usr/lib/cursor/
+	vcopy vk_swiftshader_icd.json usr/lib/cursor/
+	vcopy icudtl.dat usr/lib/cursor/
+	vcopy v8_context_snapshot.bin usr/lib/cursor/
+	vcopy snapshot_blob.bin usr/lib/cursor/
+	vcopy chrome_100_percent.pak usr/lib/cursor/
+	vcopy chrome_200_percent.pak usr/lib/cursor/
+	vcopy resources.pak usr/lib/cursor/
+	vcopy LICENSES.chromium.html usr/lib/cursor/
+
+	# Set special permissions for chrome-sandbox
+	chmod 4755 ${DESTDIR}/usr/lib/cursor/chrome-sandbox
+
+	# Create wrapper script
+	vmkdir usr/bin
+	ln -s /usr/lib/cursor/cursor ${DESTDIR}/usr/bin/cursor
+
+	# Install desktop files
+	vinstall usr_share/applications/cursor.desktop 644 usr/share/applications
+	vinstall usr_share/applications/cursor-url-handler.desktop 644 usr/share/applications
+
+	# Fix desktop file Exec and Icon paths
+	vsed -i \
+		-e 's|^Exec=.*|Exec=cursor %F|' \
+		-e 's|^Icon=.*|Icon=cursor|' \
+		${DESTDIR}/usr/share/applications/cursor.desktop
+	vsed -i \
+		-e 's|^Exec=.*|Exec=cursor --open-url %U|' \
+		-e 's|^Icon=.*|Icon=cursor|' \
+		${DESTDIR}/usr/share/applications/cursor-url-handler.desktop
+
+	# Install icons
+	vmkdir usr/share/icons
+	vcopy usr_share/icons/hicolor usr/share/icons/
+
+	# Install pixmaps
+	for size in usr_share/pixmaps/*.png; do
+		if [ -f "$size" ]; then
+			vinstall "$size" 644 usr/share/pixmaps
+		fi
+	done
+
+	# Install MIME types
+	if [ -d usr_share/mime/packages ]; then
+		vmkdir usr/share/mime/packages
+		vcopy usr_share/mime/packages/* usr/share/mime/packages/
+	fi
+
+	# Install bash completion if available
+	if [ -f usr_share/bash-completion/completions/cursor ]; then
+		vinstall usr_share/bash-completion/completions/cursor 644 usr/share/bash-completion/completions
+	fi
+
+	# Install zsh completion if available
+	if [ -f usr_share/zsh/vendor-completions/_cursor ]; then
+		vinstall usr_share/zsh/vendor-completions/_cursor 644 usr/share/zsh/site-functions
+	fi
+
+	# Install license
+	vlicense resources/app/LICENSE.txt LICENSE
+}
