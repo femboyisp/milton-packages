@@ -1,0 +1,65 @@
+# Template file for 'klayout'
+pkgname=klayout
+version=0.30.5
+revision=1
+hostmakedepends="pkg-config qt6-base qt6-tools ruby"
+makedepends="qt6-base-devel qt6-multimedia-devel qt6-svg-devel qt6-tools-devel
+ qt6-qt5compat-devel ruby-devel python3-devel zlib-devel libgit2-devel"
+depends="ruby python3"
+short_desc="Layout viewer and editor for chip design"
+maintainer="Zoa Hickenlooper <zoa@router.sex>"
+license="GPL-2.0-or-later"
+homepage="https://www.klayout.de"
+distfiles="https://www.klayout.org/downloads/source/klayout-${version}.tar.gz"
+checksum=7646acc1d81a5176dc577b297b96aabfa8515b17d264a9b85c9231a937ba42b7
+nocross=yes
+
+do_configure() {
+	:
+}
+
+do_build() {
+	./build.sh \
+		-qmake /usr/lib/qt6/bin/qmake \
+		-ruby /usr/bin/ruby \
+		-python /usr/bin/python3 \
+		-bin ${wrksrc}/bin-release \
+		-build ${wrksrc}/build \
+		-rpath /usr/lib/klayout \
+		-option "-j${XBPS_MAKEJOBS:-1}" \
+		-without-qtbinding
+}
+
+do_install() {
+	# Install binaries
+	vbin bin-release/klayout
+	vbin bin-release/strm2cif
+	vbin bin-release/strm2dxf
+	vbin bin-release/strm2gds
+	vbin bin-release/strm2gdstxt
+	vbin bin-release/strm2mag
+	vbin bin-release/strm2oas
+	vbin bin-release/strm2txt
+
+	# Install libraries
+	vmkdir usr/lib/klayout
+	vcopy "bin-release/*.so*" usr/lib/klayout/
+
+	# Install db_plugins
+	if [ -d bin-release/db_plugins ]; then
+		vmkdir usr/lib/klayout/db_plugins
+		vcopy "bin-release/db_plugins/*" usr/lib/klayout/db_plugins/
+	fi
+
+	# Install lay_plugins
+	if [ -d bin-release/lay_plugins ]; then
+		vmkdir usr/lib/klayout/lay_plugins
+		vcopy "bin-release/lay_plugins/*" usr/lib/klayout/lay_plugins/
+	fi
+
+	# Install pymod
+	if [ -d bin-release/pymod ]; then
+		vmkdir usr/lib/klayout/pymod
+		vcopy "bin-release/pymod/*" usr/lib/klayout/pymod/
+	fi
+}
