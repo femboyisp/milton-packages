@@ -1,0 +1,98 @@
+# Template file for 'obsidian'
+pkgname=obsidian
+version=1.10.6
+revision=1
+archs="x86_64 aarch64"
+hostmakedepends="tar"
+depends="at-spi2-core libsecret alsa-lib cairo gtk+3 libdrm libX11
+ libxcb libXcomposite libXdamage libXext libXfixes libxkbcommon
+ libXrandr libXScrnSaver pango nss libcurl dbus mesa xdg-utils
+ libglvnd expat"
+short_desc="Private and flexible note-taking app"
+maintainer="Zoa Hickenlooper <zoa@router.sex>"
+license="custom:Proprietary"
+homepage="https://obsidian.md"
+repository=nonfree
+restricted=yes
+nostrip=yes
+noshlibprovides=yes
+allow_unknown_shlibs=yes
+skiprdeps="/usr/lib/obsidian/resources/app"
+
+case "$XBPS_TARGET_MACHINE" in
+	x86_64)
+		distfiles="https://github.com/obsidianmd/obsidian-releases/releases/download/v${version}/Obsidian-${version}.AppImage"
+		checksum="162d753076d0610e4dccfdccf391c13af5fcb557ba7574b77f0e90ac3c522b1c"
+		;;
+	aarch64)
+		distfiles="https://github.com/obsidianmd/obsidian-releases/releases/download/v${version}/Obsidian-${version}-arm64.AppImage"
+		checksum="9dc3a7e3d75310c97e25152d5699044a62fdb33c0fe77e4314d00558ca999607"
+		;;
+	*)
+		broken="Obsidian is only available for x86_64 and aarch64"
+		;;
+esac
+
+do_extract() {
+	case "$XBPS_TARGET_MACHINE" in
+		x86_64)
+			_appimage="Obsidian-${version}.AppImage"
+			;;
+		aarch64)
+			_appimage="Obsidian-${version}-arm64.AppImage"
+			;;
+	esac
+	install -m755 ${XBPS_SRCDISTDIR}/${pkgname}-${version}/${_appimage} ${wrksrc}/obsidian.AppImage
+	cd ${wrksrc}
+	./obsidian.AppImage --appimage-extract >/dev/null
+	mv squashfs-root/* .
+	rm -rf squashfs-root
+}
+
+do_install() {
+	vmkdir usr/lib/obsidian
+	vcopy resources usr/lib/obsidian/
+	vcopy chrome_crashpad_handler usr/lib/obsidian/
+	vcopy chrome-sandbox usr/lib/obsidian/
+	vcopy obsidian usr/lib/obsidian/
+	vcopy libEGL.so usr/lib/obsidian/
+	vcopy libffmpeg.so usr/lib/obsidian/
+	vcopy libGLESv2.so usr/lib/obsidian/
+	vcopy libvk_swiftshader.so usr/lib/obsidian/
+	vcopy "libvulkan.so*" usr/lib/obsidian/
+	vcopy locales usr/lib/obsidian/
+	vcopy vk_swiftshader_icd.json usr/lib/obsidian/
+	vcopy icudtl.dat usr/lib/obsidian/
+	vcopy v8_context_snapshot.bin usr/lib/obsidian/
+	vcopy snapshot_blob.bin usr/lib/obsidian/
+	vcopy chrome_100_percent.pak usr/lib/obsidian/
+	vcopy chrome_200_percent.pak usr/lib/obsidian/
+	vcopy resources.pak usr/lib/obsidian/
+	vcopy LICENSES.chromium.html usr/lib/obsidian/
+
+	# Set special permissions for chrome-sandbox
+	chmod 4755 ${DESTDIR}/usr/lib/obsidian/chrome-sandbox
+
+	# Create symlink
+	vmkdir usr/bin
+	ln -s /usr/lib/obsidian/obsidian ${DESTDIR}/usr/bin/obsidian
+
+	# Install desktop file
+	vinstall obsidian.desktop 644 usr/share/applications
+
+	# Fix desktop file Exec and Icon paths
+	vsed -i \
+		-e 's|^Exec=.*|Exec=obsidian %U|' \
+		-e 's|^Icon=.*|Icon=obsidian|' \
+		${DESTDIR}/usr/share/applications/obsidian.desktop
+
+	# Install icon
+	vinstall obsidian.png 644 usr/share/pixmaps
+
+	# Install license
+	if [ -f resources/LICENSE.md ]; then
+		vlicense resources/LICENSE.md LICENSE
+	elif [ -f LICENSE.md ]; then
+		vlicense LICENSE.md LICENSE
+	fi
+}
