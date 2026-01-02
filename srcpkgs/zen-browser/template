@@ -1,0 +1,38 @@
+# Template file for 'zen-browser'
+pkgname=zen-browser
+version=1.17.15b
+revision=1
+archs="x86_64 aarch64"
+depends="dbus-glib gtk+3 libXt nss"
+short_desc="Firefox-based browser focused on productivity and a calmer internet"
+maintainer="Zoa Hickenlooper <zoa@router.sex>"
+license="MPL-2.0"
+homepage="https://zen-browser.app"
+nostrip=yes
+noshlibprovides=yes
+
+case "$XBPS_TARGET_MACHINE" in
+	x86_64)
+		distfiles="https://github.com/zen-browser/desktop/releases/download/${version}/zen.linux-x86_64.tar.xz"
+		checksum="13ef9d59e25c61b0af9b182f89ad1a5b08eb197d9e61668f145d752dda378778"
+		;;
+	aarch64)
+		distfiles="https://github.com/zen-browser/desktop/releases/download/${version}/zen.linux-aarch64.tar.xz"
+		checksum="7a8fe1832af18eb367fb4327f0097b6ef241ff3eaa12f36994a0bd58a3766f5f"
+		;;
+esac
+
+do_install() {
+	vmkdir usr/lib/zen-browser
+	vcopy "*" usr/lib/zen-browser/
+
+	# Create symlink
+	vmkdir usr/bin
+	ln -s /usr/lib/zen-browser/zen ${DESTDIR}/usr/bin/zen-browser
+
+	# Install desktop file
+	vinstall ${FILESDIR}/zen-browser.desktop 644 usr/share/applications
+
+	# Install icon
+	vinstall browser/chrome/icons/default/default128.png 644 usr/share/pixmaps zen-browser.png
+}
