@@ -1,0 +1,19 @@
+# Template file for 'sif'
+pkgname=sif
+version=0.0.0.20260106
+revision=1
+_commit=fe0119b4377ce788151137aecbb71bdb32b075ea
+build_style=go
+go_import_path=github.com/dropalldatabases/sif
+go_package="./cmd/sif"
+short_desc="Modular pentesting toolkit written in Go"
+maintainer="Zoa Hickenlooper <zoa@router.sex>"
+license="BSD-3-Clause"
+homepage="https://github.com/vmfunc/sif"
+changelog="https://github.com/vmfunc/sif/releases"
+distfiles="https://github.com/vmfunc/sif/archive/${_commit}.tar.gz"
+checksum=f533333ea3dbb7300cc0f529f95f3469c86a0af63131672c447eb27e92f522ce
+
+post_install() {
+	vlicense LICENSE
+}
