@@ -1,0 +1,171 @@
+name: Void Packages Auto-Update
+
+on:
+  schedule:
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+
+jobs:
+  get-updates:
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/void-linux/void-glibc-full:latest
+    outputs:
+      chunks: ${{ steps.filter.outputs.chunks }}
+      chunk_size: ${{ steps.filter.outputs.chunk_size }}
+      has_updates: ${{ steps.filter.outputs.has_updates }}
+    steps:
+      - name: Install dependencies
+        run: xbps-install -Sy git curl jq
+
+      - name: Checkout master
+        uses: actions/checkout@v4
+        with:
+          ref: master
+          fetch-depth: 1
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Fetch and filter updates
+        id: filter
+        run: |
+          CHUNK_SIZE=50
+
+          curl -sL 'https://repo-default.voidlinux.org/void-updates/void-updates.txt' \
+            > updates.txt
+
+          existing_branches=$(git ls-remote --heads origin | awk '{print $2}' | sed 's|refs/heads/||')
+
+          # Deduplicate: take latest version per package (reverse version sort -> first = latest)
+          deduped=$(awk '/->/ && /^[a-zA-Z0-9_+.-]/ {
+            v=$4; if (v ~ /[\/]/ || v ~ /[#]/ || v ~ /\.tar\./ || v ~ /\.zip/) next; print $1, v
+          }' updates.txt | sort -k1,1 -k2,2Vr | awk '!seen[$1]++')
+
+          packages='[]'
+
+          while IFS=' ' read -r pkg newver; do
+            [ -z "$pkg" ] || [ -z "$newver" ] && continue
+
+            [ -f "srcpkgs/$pkg/template" ] || continue
+
+            checksum_line=$(grep '^checksum=' "srcpkgs/$pkg/template" || true)
+            printf '%s' "$checksum_line" | grep -q '"' && continue
+
+            distfiles_line=$(grep '^distfiles=' "srcpkgs/$pkg/template" || true)
+            printf '%s' "$distfiles_line" | grep -qF '${version}' || continue
+
+            current=$(grep '^version=' "srcpkgs/$pkg/template" | cut -d= -f2)
+            [ "$current" = "$newver" ] && continue
+
+            branch="${pkg}-${newver}"
+            printf '%s\n' "$existing_branches" | grep -qxF "$branch" && continue
+
+            packages=$(printf '%s' "$packages" \
+              | jq --arg p "$pkg" --arg v "$newver" '. + [{"pkg": $p, "new": $v}]')
+          done <<< "$deduped"
+
+          # Discord: not in void-updates.txt, check its own API
+          discord_latest=$(curl -sL 'https://discordapp.com/api/updates/stable?platform=linux' \
+            | grep -oP '"name":\s*"\K[\d.]+(?=")')
+          if [ -n "$discord_latest" ]; then
+            discord_current=$(grep '^version=' srcpkgs/discord/template | cut -d= -f2)
+            if [ "$discord_current" != "$discord_latest" ]; then
+              branch="discord-${discord_latest}"
+              if ! printf '%s\n' "$existing_branches" | grep -qxF "$branch"; then
+                packages=$(printf '%s' "$packages" \
+                  | jq --arg p "discord" --arg v "$discord_latest" '. + [{"pkg": $p, "new": $v}]')
+              fi
+            fi
+          fi
+
+          printf '%s' "$packages" > packages.json
+          total=$(printf '%s' "$packages" | jq 'length')
+          echo "Total qualifying packages: $total"
+
+          if [ "$total" -eq 0 ]; then
+            echo "has_updates=false" >> "$GITHUB_OUTPUT"
+            echo "chunks=[]" >> "$GITHUB_OUTPUT"
+            echo "chunk_size=$CHUNK_SIZE" >> "$GITHUB_OUTPUT"
+          else
+            chunk_count=$(( (total + CHUNK_SIZE - 1) / CHUNK_SIZE ))
+            echo "Chunk count: $chunk_count (CHUNK_SIZE=$CHUNK_SIZE)"
+            chunks=$(jq -n "[range($chunk_count)]")
+            echo "has_updates=true" >> "$GITHUB_OUTPUT"
+            echo "chunks=$chunks" >> "$GITHUB_OUTPUT"
+            echo "chunk_size=$CHUNK_SIZE" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Upload package list
+        uses: actions/upload-artifact@v4
+        with:
+          name: package-list
+          path: packages.json
+
+  update-packages:
+    needs: get-updates
+    if: needs.get-updates.outputs.has_updates == 'true'
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/void-linux/void-glibc-full:latest
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      max-parallel: 10
+      matrix:
+        chunk: ${{ fromJson(needs.get-updates.outputs.chunks) }}
+    steps:
+      - name: Install dependencies
+        run: xbps-install -Sy git curl jq
+
+      - name: Checkout master
+        uses: actions/checkout@v4
+        with:
+          ref: master
+          fetch-depth: 1
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Download package list
+        uses: actions/download-artifact@v4
+        with:
+          name: package-list
+
+      - name: Process chunk
+        env:
+          CHUNK: ${{ matrix.chunk }}
+          CHUNK_SIZE: ${{ needs.get-updates.outputs.chunk_size }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          jq -c ".[$CHUNK*$CHUNK_SIZE:($CHUNK+1)*$CHUNK_SIZE][]" packages.json \
+            | while IFS= read -r item; do
+              pkg=$(printf '%s' "$item" | jq -r '.pkg')
+              newver=$(printf '%s' "$item" | jq -r '.new')
+
+              git checkout master
+
+              distfiles=$(grep '^distfiles=' "srcpkgs/$pkg/template" \
+                | sed 's/^distfiles=//' | tr -d '"')
+              new_url=$(printf '%s' "$distfiles" \
+                | sed "s/\${version}/${newver}/g; s/\\\$version/${newver}/g")
+              echo "Downloading: $new_url"
+
+              if ! curl -fsSL "$new_url" -o /tmp/pkg_download 2>/dev/null; then
+                echo "Download failed for $pkg $newver, skipping"
+                rm -f /tmp/pkg_download
+                continue
+              fi
+              sha256=$(sha256sum /tmp/pkg_download | cut -d' ' -f1)
+              rm -f /tmp/pkg_download
+
+              branch="${pkg}-${newver}"
+              git checkout -b "$branch"
+
+              sed -i "s/^version=.*/version=${newver}/" "srcpkgs/$pkg/template"
+              sed -i "s/^checksum=.*/checksum=${sha256}/" "srcpkgs/$pkg/template"
+              sed -i "s/^revision=.*/revision=1/" "srcpkgs/$pkg/template"
+
+              git add "srcpkgs/$pkg/template"
+              git commit -m "${pkg}: update to ${newver}."
+              git push origin "$branch"
+            done
