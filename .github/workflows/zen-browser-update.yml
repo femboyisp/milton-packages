@@ -1,0 +1,94 @@
+name: 'zen-browser auto-update'
+
+on:
+  workflow_dispatch:
+  schedule:
+    # Run daily at 06:00 UTC
+    - cron: '0 6 * * *'
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Check for new release and update template
+        id: update
+        run: |
+          set -euo pipefail
+          template="srcpkgs/zen-browser/template"
+
+          current="$(grep -oP '^version=\K.*' "$template")"
+          latest="$(curl -fsSL https://api.github.com/repos/zen-browser/desktop/releases/latest | jq -r .tag_name)"
+          echo "current=$current latest=$latest"
+
+          if [ -z "$latest" ] || [ "$latest" = "null" ]; then
+            echo "Could not determine latest release; aborting." >&2
+            exit 1
+          fi
+          if [ "$latest" = "$current" ]; then
+            echo "Already up to date ($current); nothing to do."
+            exit 0
+          fi
+
+          branch="auto/zen-browser-$latest"
+          if git ls-remote --exit-code --heads origin "$branch" >/dev/null 2>&1; then
+            echo "Branch $branch already exists on origin; PR presumably open."
+            exit 0
+          fi
+
+          base="https://github.com/zen-browser/desktop/releases/download/$latest"
+          sum_x86_64="$(curl -fsSL "$base/zen.linux-x86_64.tar.xz" | sha256sum | cut -d' ' -f1)"
+          sum_aarch64="$(curl -fsSL "$base/zen.linux-aarch64.tar.xz" | sha256sum | cut -d' ' -f1)"
+          echo "x86_64=$sum_x86_64 aarch64=$sum_aarch64"
+
+          # version + revision
+          sed -i -E "s/^version=.*/version=$latest/" "$template"
+          sed -i -E "s/^revision=.*/revision=1/" "$template"
+
+          # Rewrite each checksum line, keyed off the distfiles line above it so the
+          # right hash lands in the right case arm.
+          awk -v x="$sum_x86_64" -v a="$sum_aarch64" '
+            /zen\.linux-x86_64\.tar\.xz/ { arch="x86_64" }
+            /zen\.linux-aarch64\.tar\.xz/ { arch="aarch64" }
+            /^[[:space:]]*checksum=/ {
+              if (arch == "x86_64")  { sub(/checksum=.*/, "checksum=\"" x "\"") }
+              if (arch == "aarch64") { sub(/checksum=.*/, "checksum=\"" a "\"") }
+            }
+            { print }
+          ' "$template" > "$template.new"
+          mv "$template.new" "$template"
+
+          echo "branch=$branch" >> "$GITHUB_OUTPUT"
+          echo "latest=$latest" >> "$GITHUB_OUTPUT"
+          echo "changed=1" >> "$GITHUB_OUTPUT"
+
+      - name: Commit and open PR
+        if: steps.update.outputs.changed == '1'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BRANCH: ${{ steps.update.outputs.branch }}
+          LATEST: ${{ steps.update.outputs.latest }}
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git checkout -b "$BRANCH"
+          git add srcpkgs/zen-browser/template
+          git commit -m "zen-browser: update to $LATEST."
+          git push origin "$BRANCH"
+          gh pr create \
+            --base main \
+            --head "$BRANCH" \
+            --title "zen-browser: update to $LATEST." \
+            --body "Automated update to zen-browser $LATEST.
+
+          Release notes: https://github.com/zen-browser/desktop/releases/tag/$LATEST"
