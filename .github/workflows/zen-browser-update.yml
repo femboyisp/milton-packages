@@ -84,8 +84,10 @@ jobs:
           LATEST: ${{ steps.update.outputs.latest }}
         run: |
           set -euo pipefail
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
+          # Use a real (non-noreply) identity: common/scripts/lint-commits
+          # rejects noreply/localhost author emails.
+          git config user.name "Zoa Hickenlooper"
+          git config user.email "zoa@router.sex"
           git checkout -B "$BRANCH"
           git add srcpkgs/zen-browser/template
           git commit -m "zen-browser: update to $LATEST."
