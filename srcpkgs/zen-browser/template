@@ -1,6 +1,6 @@
 # Template file for 'zen-browser'
 pkgname=zen-browser
-version=1.21.4b
+version=1.21.5b
 revision=1
 archs="x86_64 aarch64"
 depends="dbus-glib gtk+3 libXt nss"
@@ -14,11 +14,11 @@ noshlibprovides=yes
 case "$XBPS_TARGET_MACHINE" in
 	x86_64)
 		distfiles="https://github.com/zen-browser/desktop/releases/download/${version}/zen.linux-x86_64.tar.xz"
-		checksum="02b814ccd0e6659468d438fa3be91c0e9934b1f0d5c58078319ea7a6e26729eb"
+		checksum="0dea09bbc5fed9e1e32839f288a609b0b20eb1befed8d4f892e222a65dfaa069"
 		;;
 	aarch64)
 		distfiles="https://github.com/zen-browser/desktop/releases/download/${version}/zen.linux-aarch64.tar.xz"
-		checksum="9b1c9ee05f02d03b1d4e7982e3a8a1f48221868e163f6f438aece366dc98e71c"
+		checksum="8178a85fca13ca1baf03c8c003ff833f4fae829a6b0e84d0111f28737f0c3b00"
 		;;
 esac
 
