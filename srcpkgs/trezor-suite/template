@@ -1,0 +1,108 @@
+# Template file for 'trezor-suite'
+pkgname=trezor-suite
+version=26.6.1
+revision=1
+archs="x86_64 aarch64"
+hostmakedepends="tar"
+depends="at-spi2-core libsecret alsa-lib cairo gtk+3 libdrm libX11
+ libxcb libXcomposite libXdamage libXext libXfixes libxkbcommon
+ libXrandr libXScrnSaver pango nss libcurl dbus mesa xdg-utils
+ libglvnd expat trezor-udev-rules"
+short_desc="Official companion app for Trezor hardware wallets"
+maintainer="Zoa Hickenlooper <zoa@router.sex>"
+license="custom:T-RSL"
+homepage="https://trezor.io/trezor-suite"
+changelog="https://github.com/trezor/trezor-suite/releases"
+repository=nonfree
+restricted=yes
+nostrip=yes
+noshlibprovides=yes
+allow_unknown_shlibs=yes
+skiprdeps="/usr/lib/trezor-suite/resources/app.asar.unpacked"
+
+case "$XBPS_TARGET_MACHINE" in
+	x86_64)
+		distfiles="https://github.com/trezor/trezor-suite/releases/download/v${version}/Trezor-Suite-${version}-linux-x86_64.AppImage"
+		checksum=34e31f2f36839200886322b043b2376b0d91ff757f2b8f1f2cba8e7294d244b2
+		;;
+	aarch64)
+		distfiles="https://github.com/trezor/trezor-suite/releases/download/v${version}/Trezor-Suite-${version}-linux-arm64.AppImage"
+		checksum=757090e0dde76bb0bb1079305728e5985fdfcd979f1e4d6d37b95bcf1dda2805
+		;;
+	*)
+		broken="trezor-suite is only available for x86_64 and aarch64"
+		;;
+esac
+
+do_extract() {
+	case "$XBPS_TARGET_MACHINE" in
+		x86_64)
+			_appimage="Trezor-Suite-${version}-linux-x86_64.AppImage"
+			_usbdir="linux-x64"
+			_usbfile="node.napi.glibc.node"
+			;;
+		aarch64)
+			_appimage="Trezor-Suite-${version}-linux-arm64.AppImage"
+			_usbdir="linux-arm64"
+			_usbfile="node.napi.armv8.node"
+			;;
+	esac
+	install -m755 ${XBPS_SRCDISTDIR}/${pkgname}-${version}/${_appimage} ${wrksrc}/trezor-suite.AppImage
+	cd ${wrksrc}
+	./trezor-suite.AppImage --appimage-extract >/dev/null
+	mv squashfs-root/* .
+	rm -rf squashfs-root
+
+	# The bundled node-usb native addon ships prebuilt binaries for every
+	# platform/arch/libc it supports (Android, Darwin, Windows, other Linux
+	# arches, and a musl variant) even though only one is ever loaded at
+	# runtime. The Android prebuilds use Bionic's unversioned "libc.so"
+	# SONAME, which collides with musl's own shlib name and makes
+	# xbps-src's dependency scanner add a bogus hard depends on
+	# musl>=1.2.5_1 (uninstallable on a glibc system). Prune everything but
+	# the prebuild this target actually uses.
+	_usbprebuilds="resources/app.asar.unpacked/node_modules/usb/prebuilds"
+	find "${_usbprebuilds}" -mindepth 1 -maxdepth 1 -type d ! -name "${_usbdir}" -exec rm -rf {} +
+	find "${_usbprebuilds}/${_usbdir}" -mindepth 1 -type f ! -name "${_usbfile}" -delete
+}
+
+do_install() {
+	vmkdir usr/lib/trezor-suite
+	vcopy resources usr/lib/trezor-suite/
+	vcopy chrome_crashpad_handler usr/lib/trezor-suite/
+	vcopy chrome-sandbox usr/lib/trezor-suite/
+	vcopy trezor-suite usr/lib/trezor-suite/
+	vcopy libEGL.so usr/lib/trezor-suite/
+	vcopy libffmpeg.so usr/lib/trezor-suite/
+	vcopy libGLESv2.so usr/lib/trezor-suite/
+	vcopy libvk_swiftshader.so usr/lib/trezor-suite/
+	vcopy "libvulkan.so*" usr/lib/trezor-suite/
+	vcopy locales usr/lib/trezor-suite/
+	vcopy vk_swiftshader_icd.json usr/lib/trezor-suite/
+	vcopy icudtl.dat usr/lib/trezor-suite/
+	vcopy v8_context_snapshot.bin usr/lib/trezor-suite/
+	vcopy snapshot_blob.bin usr/lib/trezor-suite/
+	vcopy chrome_100_percent.pak usr/lib/trezor-suite/
+	vcopy chrome_200_percent.pak usr/lib/trezor-suite/
+	vcopy resources.pak usr/lib/trezor-suite/
+	vcopy LICENSE.electron.txt usr/lib/trezor-suite/
+	vcopy LICENSES.chromium.html usr/lib/trezor-suite/
+
+	# Set special permissions for chrome-sandbox so Chromium's own
+	# sandboxing works without needing --no-sandbox on Exec=
+	chmod 4755 ${DESTDIR}/usr/lib/trezor-suite/chrome-sandbox
+
+	vmkdir usr/bin
+	ln -s /usr/lib/trezor-suite/trezor-suite ${DESTDIR}/usr/bin/trezor-suite
+
+	vinstall trezor-suite.desktop 644 usr/share/applications
+	vsed -i \
+		-e 's|^Exec=.*|Exec=trezor-suite %U|' \
+		-e 's|^Icon=.*|Icon=trezor-suite|' \
+		${DESTDIR}/usr/share/applications/trezor-suite.desktop
+
+	vmkdir usr/share/icons/hicolor/512x512/apps
+	vinstall trezor-suite.png 644 usr/share/icons/hicolor/512x512/apps
+
+	vlicense LICENSE.electron.txt LICENSE
+}

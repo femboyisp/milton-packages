@@ -1,0 +1,113 @@
+name: 'trezor-suite auto-update'
+
+on:
+  workflow_dispatch:
+  schedule:
+    # Run daily at 06:00 UTC
+    - cron: '0 6 * * *'
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v5
+        with:
+          ref: main
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Check for new release, verify signature, update template
+        id: update
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          template="srcpkgs/trezor-suite/template"
+          trezor_fpr="EB483B26B078A4AA1B6F425EE21B6950A2ECB65C"
+
+          current="$(grep -oP '^version=\K.*' "$template")"
+          latest_tag="$(curl -fsSL https://api.github.com/repos/trezor/trezor-suite/releases/latest | jq -r .tag_name)"
+          latest="${latest_tag#v}"
+          echo "current=$current latest=$latest"
+
+          if [ -z "$latest" ] || [ "$latest" = "null" ]; then
+            echo "Could not determine latest release; aborting." >&2
+            exit 1
+          fi
+          if [ "$latest" = "$current" ]; then
+            echo "Already up to date ($current); nothing to do."
+            exit 0
+          fi
+
+          branch="auto/trezor-suite-$latest"
+          if [ -n "$(gh pr list --state open --head "$branch" --json number --jq '.[].number')" ]; then
+            echo "An open PR already exists for $branch; nothing to do."
+            exit 0
+          fi
+
+          gpg --keyserver hkps://keyserver.ubuntu.com --recv-keys "$trezor_fpr"
+
+          base="https://github.com/trezor/trezor-suite/releases/download/v$latest"
+          declare -A sums
+          for entry in "x86_64:Trezor-Suite-$latest-linux-x86_64.AppImage" "aarch64:Trezor-Suite-$latest-linux-arm64.AppImage"; do
+            arch="${entry%%:*}"
+            fname="${entry#*:}"
+            curl -fsSL -o "$fname" "$base/$fname"
+            curl -fsSL -o "$fname.asc" "$base/$fname.asc"
+
+            fpr_seen="$(gpg --status-fd 1 --verify "$fname.asc" "$fname" 2>/dev/null | awk '/VALIDSIG/ {print $3}')"
+            if [ "$fpr_seen" != "$trezor_fpr" ]; then
+              echo "GPG verification FAILED for $fname (got fingerprint: ${fpr_seen:-none})" >&2
+              exit 1
+            fi
+            echo "GPG verification OK for $fname"
+
+            sums[$arch]="$(sha256sum "$fname" | cut -d' ' -f1)"
+          done
+          echo "x86_64=${sums[x86_64]} aarch64=${sums[aarch64]}"
+
+          sed -i -E "s/^version=.*/version=$latest/" "$template"
+          sed -i -E "s/^revision=.*/revision=1/" "$template"
+
+          awk -v x="${sums[x86_64]}" -v a="${sums[aarch64]}" '
+            /linux-x86_64\.AppImage"$/ { arch="x86_64" }
+            /linux-arm64\.AppImage"$/  { arch="aarch64" }
+            /^[[:space:]]*checksum=/ {
+              if (arch == "x86_64")  { sub(/checksum=.*/, "checksum=\"" x "\"") }
+              if (arch == "aarch64") { sub(/checksum=.*/, "checksum=\"" a "\"") }
+            }
+            { print }
+          ' "$template" > "$template.new"
+          mv "$template.new" "$template"
+
+          echo "branch=$branch" >> "$GITHUB_OUTPUT"
+          echo "latest=$latest" >> "$GITHUB_OUTPUT"
+          echo "changed=1" >> "$GITHUB_OUTPUT"
+
+      - name: Commit and open PR
+        if: steps.update.outputs.changed == '1'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BRANCH: ${{ steps.update.outputs.branch }}
+          LATEST: ${{ steps.update.outputs.latest }}
+        run: |
+          set -euo pipefail
+          git config user.name "Zoa Hickenlooper"
+          git config user.email "zoa@router.sex"
+          git checkout -B "$BRANCH"
+          git add srcpkgs/trezor-suite/template
+          git commit -m "trezor-suite: update to $LATEST."
+          git push --force origin "$BRANCH"
+          gh pr create \
+            --base main \
+            --head "$BRANCH" \
+            --title "trezor-suite: update to $LATEST." \
+            --body "Automated update to trezor-suite $LATEST.
+
+          GPG signature verified against the SatoshiLabs 2021 Signing Key (fingerprint EB48 3B26 B078 A4AA 1B6F 425E E21B 6950 A2EC B65C) for both x86_64 and aarch64 AppImages before this PR was opened.
+
+          Release notes: https://github.com/trezor/trezor-suite/releases/tag/v$LATEST"
