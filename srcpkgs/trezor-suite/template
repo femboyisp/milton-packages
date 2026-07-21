@@ -38,9 +38,13 @@ do_extract() {
 	case "$XBPS_TARGET_MACHINE" in
 		x86_64)
 			_appimage="Trezor-Suite-${version}-linux-x86_64.AppImage"
+			_usbdir="linux-x64"
+			_usbfile="node.napi.glibc.node"
 			;;
 		aarch64)
 			_appimage="Trezor-Suite-${version}-linux-arm64.AppImage"
+			_usbdir="linux-arm64"
+			_usbfile="node.napi.armv8.node"
 			;;
 	esac
 	install -m755 ${XBPS_SRCDISTDIR}/${pkgname}-${version}/${_appimage} ${wrksrc}/trezor-suite.AppImage
@@ -48,6 +52,18 @@ do_extract() {
 	./trezor-suite.AppImage --appimage-extract >/dev/null
 	mv squashfs-root/* .
 	rm -rf squashfs-root
+
+	# The bundled node-usb native addon ships prebuilt binaries for every
+	# platform/arch/libc it supports (Android, Darwin, Windows, other Linux
+	# arches, and a musl variant) even though only one is ever loaded at
+	# runtime. The Android prebuilds use Bionic's unversioned "libc.so"
+	# SONAME, which collides with musl's own shlib name and makes
+	# xbps-src's dependency scanner add a bogus hard depends on
+	# musl>=1.2.5_1 (uninstallable on a glibc system). Prune everything but
+	# the prebuild this target actually uses.
+	_usbprebuilds="resources/app.asar.unpacked/node_modules/usb/prebuilds"
+	find "${_usbprebuilds}" -mindepth 1 -maxdepth 1 -type d ! -name "${_usbdir}" -exec rm -rf {} +
+	find "${_usbprebuilds}/${_usbdir}" -mindepth 1 -type f ! -name "${_usbfile}" -delete
 }
 
 do_install() {
