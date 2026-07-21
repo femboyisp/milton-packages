@@ -2,17 +2,13 @@
 pkgname=trezor-udev-rules
 version=1.0.0
 revision=1
+build_style=fetch
 short_desc="Udev rules for Trezor hardware wallets"
 maintainer="Zoa Hickenlooper <zoa@router.sex>"
 license="CC0-1.0"
 homepage="https://github.com/trezor/trezor-common"
-distfiles="https://raw.githubusercontent.com/trezor/trezor-common/master/udev/51-trezor.rules"
+distfiles="https://raw.githubusercontent.com/trezor/trezor-common/73c91f845bcea1d80398fd0e50737788d9b8cf6f/udev/51-trezor.rules"
 checksum=f3b39b4537da6260a7b63af07710aedfab1fe87d8eeff0975d176b9b908b9d6e
-
-do_extract() {
-	# Single file, not an archive - copy to work directory
-	cp "${XBPS_SRCDISTDIR}"/${pkgname}-${version}/51-trezor.rules "${wrksrc}"/
-}
 
 do_install() {
 	vinstall 51-trezor.rules 644 usr/lib/udev/rules.d
