@@ -6,7 +6,7 @@ _randomx_commit=6c4340ba4561aec9a3611c1aedf9931239777fb3
 _rapidjson_commit=129d19ba7f496df5e33658527a7158c79b99c21c
 _supercop_commit=633500ad8c8759995049ccd022107d1fa8a1bbc9
 _trezorcommon_commit=bff7fdfe436c727982cc553bdfb29a9021b423b0
-archs="x86_64 aarch64"
+archs="x86_64"
 build_style=cmake
 configure_args="-DCMAKE_BUILD_TYPE=Release -DBUILD_TESTS=OFF -DBUILD_DOCUMENTATION=OFF"
 hostmakedepends="cmake pkg-config protobuf"
