@@ -16,7 +16,7 @@ hostmakedepends="cmake pkg-config protobuf qt5-host-tools qt5-qmake"
 makedepends="boost-devel openssl-devel zeromq-devel unbound-devel
  libsodium-devel libunwind-devel readline-devel hidapi-devel libusb-devel
  protobuf-devel qt5-devel qt5-declarative-devel qt5-svg-devel libgcrypt-devel"
-depends="qt5-quickcontrols qt5-quickcontrols2 qt5-graphicaleffects"
+depends="monero qt5-quickcontrols qt5-quickcontrols2 qt5-graphicaleffects qt5-multimedia"
 short_desc="Private, secure, untraceable cryptocurrency (Qt/QML GUI wallet)"
 maintainer="Zoa Hickenlooper <zoa@router.sex>"
 license="BSD-3-Clause"
@@ -82,4 +82,10 @@ post_install() {
 		${DESTDIR}/usr/lib/libepee.a \
 		${DESTDIR}/usr/lib/libepee_readline.a \
 		${DESTDIR}/usr/lib/liblmdb.a
+
+	vinstall share/org.getmonero.Monero.desktop 644 usr/share/applications
+	for size in 16 24 32 48 64 96 128 256; do
+		vinstall images/appicons/${size}x${size}.png 644 \
+			usr/share/icons/hicolor/${size}x${size}/apps org.getmonero.Monero.png
+	done
 }
