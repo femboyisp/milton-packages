@@ -1,0 +1,91 @@
+# Template file for 'monero-gui'
+pkgname=monero-gui
+version=0.18.5.2
+revision=1
+_quirc_commit=927d680904dc95fdff4cd9d022eb374b438ff8f2
+_monero_commit=4f92268d7c16741cfb41e5bbe2aa46cc260a9ea5
+_randomx_commit=6c4340ba4561aec9a3611c1aedf9931239777fb3
+_rapidjson_commit=129d19ba7f496df5e33658527a7158c79b99c21c
+_supercop_commit=633500ad8c8759995049ccd022107d1fa8a1bbc9
+_trezorcommon_commit=bff7fdfe436c727982cc553bdfb29a9021b423b0
+archs="x86_64"
+build_style=cmake
+build_helper="qmake"
+configure_args="-DCMAKE_BUILD_TYPE=Release"
+hostmakedepends="cmake pkg-config protobuf qt5-host-tools qt5-qmake"
+makedepends="boost-devel openssl-devel zeromq-devel unbound-devel
+ libsodium-devel libunwind-devel readline-devel hidapi-devel libusb-devel
+ protobuf-devel qt5-devel qt5-declarative-devel qt5-svg-devel libgcrypt-devel"
+depends="monero qt5-quickcontrols qt5-quickcontrols2 qt5-graphicaleffects qt5-multimedia"
+short_desc="Private, secure, untraceable cryptocurrency (Qt/QML GUI wallet)"
+maintainer="Zoa Hickenlooper <zoa@router.sex>"
+license="BSD-3-Clause"
+homepage="https://www.getmonero.org/"
+changelog="https://github.com/monero-project/monero-gui/releases"
+distfiles="https://github.com/monero-project/monero-gui/archive/refs/tags/v${version}.tar.gz
+ https://github.com/dlbeer/quirc/archive/${_quirc_commit}.tar.gz>quirc-${_quirc_commit}.tar.gz
+ https://github.com/monero-project/monero/archive/${_monero_commit}.tar.gz>monero-core-${_monero_commit}.tar.gz
+ https://github.com/tevador/RandomX/archive/${_randomx_commit}.tar.gz>randomx-${_randomx_commit}.tar.gz
+ https://github.com/Tencent/rapidjson/archive/${_rapidjson_commit}.tar.gz>rapidjson-${_rapidjson_commit}.tar.gz
+ https://github.com/monero-project/supercop/archive/${_supercop_commit}.tar.gz>supercop-${_supercop_commit}.tar.gz
+ https://github.com/trezor/trezor-common/archive/${_trezorcommon_commit}.tar.gz>trezor-common-${_trezorcommon_commit}.tar.gz"
+checksum="1bbb7c016e334be46d91fe2031f41b190beb8ff3d8b2b6a0d5eef9f9be331a00
+ a980041c34f8ad9472f57f509ec1c54e1dfd07e843f4419285f5715423410140
+ 4fdd15401af04e1ce84dcae40c8c114320d1cc9b449db25c0d57efa4b4054881
+ d98a8885968d736b36657fa5264786d4947c3fcf433c873802678527e6db3584
+ 44b007d419ac21b6affec58991e865ee572346ead19b73cf1c3e4e11c7a81273
+ b973b9d8269ec4d97c3c3443f0dad96d09f72b1b30e616e0947557adbdbb03f7
+ 951f4df9dfb2466698e0b0a1b52ec27e4d6f13538ff22f1d6c0ae87f9d07c1b6"
+skip_extraction="quirc-${_quirc_commit}.tar.gz
+ monero-core-${_monero_commit}.tar.gz
+ randomx-${_randomx_commit}.tar.gz
+ rapidjson-${_rapidjson_commit}.tar.gz
+ supercop-${_supercop_commit}.tar.gz
+ trezor-common-${_trezorcommon_commit}.tar.gz"
+
+post_extract() {
+	mkdir -p external/quirc monero
+	vsrcextract -C external/quirc "quirc-${_quirc_commit}.tar.gz"
+	vsrcextract -C monero "monero-core-${_monero_commit}.tar.gz"
+	mkdir -p monero/external/randomx monero/external/rapidjson \
+		monero/external/supercop monero/external/trezor-common
+	vsrcextract -C monero/external/randomx "randomx-${_randomx_commit}.tar.gz"
+	vsrcextract -C monero/external/rapidjson "rapidjson-${_rapidjson_commit}.tar.gz"
+	vsrcextract -C monero/external/supercop "supercop-${_supercop_commit}.tar.gz"
+	vsrcextract -C monero/external/trezor-common "trezor-common-${_trezorcommon_commit}.tar.gz"
+}
+
+post_patch() {
+	vsed -i 's/-DCMAKE_CXX_STANDARD=11/-DCMAKE_CXX_STANDARD=17/' monero/cmake/CheckTrezor.cmake
+	vsed -i 's/set(CMAKE_CXX_STANDARD 14)/set(CMAKE_CXX_STANDARD 17)/' monero/CMakeLists.txt
+}
+
+post_install() {
+	vlicense LICENSE
+
+	# monero-gui vendors and builds its own copy of the monero core as an
+	# internal subdirectory (see post_extract above). monero's own
+	# CMakeLists.txt unconditionally installs its own daemon/CLI binaries
+	# and a devel header alongside monero-wallet-gui; those are identical
+	# in path to what the separate 'monero' package ships, and would
+	# conflict with it. This package's interface is only
+	# /usr/bin/monero-wallet-gui, so prune everything else the vendored
+	# core's install rules add, to prevent any conflict with 'monero'.
+	rm -f ${DESTDIR}/usr/bin/monero-blockchain-* \
+		${DESTDIR}/usr/bin/monero-gen-ssl-cert \
+		${DESTDIR}/usr/bin/monero-gen-trusted-multisig \
+		${DESTDIR}/usr/bin/monero-wallet-cli \
+		${DESTDIR}/usr/bin/monero-wallet-rpc \
+		${DESTDIR}/usr/bin/monerod
+	rm -rf ${DESTDIR}/usr/include/wallet
+	rm -f ${DESTDIR}/usr/lib/libeasylogging.a \
+		${DESTDIR}/usr/lib/libepee.a \
+		${DESTDIR}/usr/lib/libepee_readline.a \
+		${DESTDIR}/usr/lib/liblmdb.a
+
+	vinstall share/org.getmonero.Monero.desktop 644 usr/share/applications
+	for size in 16 24 32 48 64 96 128 256; do
+		vinstall images/appicons/${size}x${size}.png 644 \
+			usr/share/icons/hicolor/${size}x${size}/apps org.getmonero.Monero.png
+	done
+}

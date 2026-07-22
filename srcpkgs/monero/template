@@ -1,0 +1,51 @@
+# Template file for 'monero'
+pkgname=monero
+version=0.18.5.1
+revision=1
+_randomx_commit=6c4340ba4561aec9a3611c1aedf9931239777fb3
+_rapidjson_commit=129d19ba7f496df5e33658527a7158c79b99c21c
+_supercop_commit=633500ad8c8759995049ccd022107d1fa8a1bbc9
+_trezorcommon_commit=bff7fdfe436c727982cc553bdfb29a9021b423b0
+archs="x86_64"
+build_style=cmake
+configure_args="-DCMAKE_BUILD_TYPE=Release -DBUILD_TESTS=OFF -DBUILD_DOCUMENTATION=OFF"
+hostmakedepends="cmake pkg-config protobuf"
+makedepends="boost-devel openssl-devel zeromq-devel unbound-devel
+ libsodium-devel libunwind-devel readline-devel hidapi-devel libusb-devel
+ protobuf-devel"
+short_desc="Private, secure, untraceable cryptocurrency (daemon and CLI wallet)"
+maintainer="Zoa Hickenlooper <zoa@router.sex>"
+license="BSD-3-Clause"
+homepage="https://www.getmonero.org/"
+changelog="https://github.com/monero-project/monero/releases"
+distfiles="https://github.com/monero-project/monero/archive/refs/tags/v${version}.tar.gz
+ https://github.com/tevador/RandomX/archive/${_randomx_commit}.tar.gz>randomx-${_randomx_commit}.tar.gz
+ https://github.com/Tencent/rapidjson/archive/${_rapidjson_commit}.tar.gz>rapidjson-${_rapidjson_commit}.tar.gz
+ https://github.com/monero-project/supercop/archive/${_supercop_commit}.tar.gz>supercop-${_supercop_commit}.tar.gz
+ https://github.com/trezor/trezor-common/archive/${_trezorcommon_commit}.tar.gz>trezor-common-${_trezorcommon_commit}.tar.gz"
+checksum="66100f2f840052e6dca68b80df69b453ae076fac04d7cf20a471d1a2f4c4212c
+ d98a8885968d736b36657fa5264786d4947c3fcf433c873802678527e6db3584
+ 44b007d419ac21b6affec58991e865ee572346ead19b73cf1c3e4e11c7a81273
+ b973b9d8269ec4d97c3c3443f0dad96d09f72b1b30e616e0947557adbdbb03f7
+ 951f4df9dfb2466698e0b0a1b52ec27e4d6f13538ff22f1d6c0ae87f9d07c1b6"
+skip_extraction="randomx-${_randomx_commit}.tar.gz
+ rapidjson-${_rapidjson_commit}.tar.gz
+ supercop-${_supercop_commit}.tar.gz
+ trezor-common-${_trezorcommon_commit}.tar.gz"
+
+post_extract() {
+	mkdir -p external/randomx external/rapidjson external/supercop external/trezor-common
+	vsrcextract -C external/randomx "randomx-${_randomx_commit}.tar.gz"
+	vsrcextract -C external/rapidjson "rapidjson-${_rapidjson_commit}.tar.gz"
+	vsrcextract -C external/supercop "supercop-${_supercop_commit}.tar.gz"
+	vsrcextract -C external/trezor-common "trezor-common-${_trezorcommon_commit}.tar.gz"
+}
+
+post_patch() {
+	vsed -i 's/-DCMAKE_CXX_STANDARD=11/-DCMAKE_CXX_STANDARD=17/' cmake/CheckTrezor.cmake
+	vsed -i 's/set(CMAKE_CXX_STANDARD 14)/set(CMAKE_CXX_STANDARD 17)/' CMakeLists.txt
+}
+
+post_install() {
+	vlicense LICENSE
+}
