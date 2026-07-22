@@ -57,14 +57,18 @@ jobs:
           gpg --import /tmp/monero-src/utils/gpg_keys/luigi1111.asc
 
           cd /tmp/monero-src
-          verify_out="$(git verify-tag "$latest_tag" 2>&1)" || {
+          verify_out="$(git verify-tag --raw "$latest_tag" 2>&1)" || {
             echo "GPG tag verification FAILED:" >&2
             echo "$verify_out" >&2
             exit 1
           }
-          fpr_seen="$(echo "$verify_out" | grep -oE '[0-9A-F]{40}' | head -1)"
+          fpr_seen="$(echo "$verify_out" | awk '/^\[GNUPG:\] VALIDSIG/ {print $3}')"
+          if [ -z "$fpr_seen" ]; then
+            echo "GPG tag verification FAILED: VALIDSIG line not found" >&2
+            exit 1
+          fi
           if [ "$fpr_seen" != "$fpr_binaryfate" ] && [ "$fpr_seen" != "$fpr_luigi1111" ]; then
-            echo "GPG tag verification signer NOT TRUSTED: $fpr_seen" >&2
+            echo "GPG tag verification signer NOT TRUSTED: ${fpr_seen}" >&2
             exit 1
           fi
           echo "GPG tag verification OK, signer: $fpr_seen"
