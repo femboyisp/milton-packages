@@ -41,6 +41,11 @@ post_extract() {
 	vsrcextract -C external/trezor-common "trezor-common-${_trezorcommon_commit}.tar.gz"
 }
 
+post_patch() {
+	vsed -i 's/-DCMAKE_CXX_STANDARD=11/-DCMAKE_CXX_STANDARD=17/' cmake/CheckTrezor.cmake
+	vsed -i 's/set(CMAKE_CXX_STANDARD 14)/set(CMAKE_CXX_STANDARD 17)/' CMakeLists.txt
+}
+
 post_install() {
 	vlicense LICENSE
 }
