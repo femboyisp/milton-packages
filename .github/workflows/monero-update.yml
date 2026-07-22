@@ -92,7 +92,12 @@ jobs:
           sed -i -E "s/^_rapidjson_commit=.*/_rapidjson_commit=$rapidjson_commit/" "$template"
           sed -i -E "s/^_supercop_commit=.*/_supercop_commit=$supercop_commit/" "$template"
           sed -i -E "s/^_trezorcommon_commit=.*/_trezorcommon_commit=$trezorcommon_commit/" "$template"
-          sed -i -E "s/^checksum=.*/checksum=\"$main_sum $randomx_sum $rapidjson_sum $supercop_sum $trezorcommon_sum\"/" "$template"
+          awk -v new="checksum=\"$main_sum $randomx_sum $rapidjson_sum $supercop_sum $trezorcommon_sum\"" '
+            /^checksum=/ { print new; if ($0 !~ /"[[:space:]]*$/) in_block=1; next }
+            in_block && /"[[:space:]]*$/ { in_block=0; next }
+            in_block { next }
+            { print }
+          ' "$template" > "$template.new" && mv "$template.new" "$template"
 
           rm -rf /tmp/monero-src "$GNUPGHOME"
 
