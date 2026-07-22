@@ -16,6 +16,7 @@ hostmakedepends="cmake pkg-config protobuf qt5-host-tools qt5-qmake"
 makedepends="boost-devel openssl-devel zeromq-devel unbound-devel
  libsodium-devel libunwind-devel readline-devel hidapi-devel libusb-devel
  protobuf-devel qt5-devel qt5-declarative-devel qt5-svg-devel libgcrypt-devel"
+depends="qt5-quickcontrols qt5-quickcontrols2 qt5-graphicaleffects"
 short_desc="Private, secure, untraceable cryptocurrency (Qt/QML GUI wallet)"
 maintainer="Zoa Hickenlooper <zoa@router.sex>"
 license="BSD-3-Clause"
