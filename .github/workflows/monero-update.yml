@@ -1,0 +1,121 @@
+name: 'monero auto-update'
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 7 * * *'
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v5
+        with:
+          ref: main
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Check for new release, verify signed tag, update template
+        id: update
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          template="srcpkgs/monero/template"
+          fpr_binaryfate="81AC591FE9C4B65C5806AFC3F0AF4D462A0BDF92"
+          fpr_luigi1111="8777AB8F778EE89487A2F8E7F4ACA0183641E010"
+
+          current="$(grep -oP '^version=\K.*' "$template")"
+          latest_tag="$(curl -fsSL https://api.github.com/repos/monero-project/monero/releases/latest | jq -r .tag_name)"
+          latest="${latest_tag#v}"
+          echo "current=$current latest=$latest"
+
+          if [ -z "$latest" ] || [ "$latest" = "null" ]; then
+            echo "Could not determine latest release; aborting." >&2
+            exit 1
+          fi
+          if [ "$latest" = "$current" ]; then
+            echo "Already up to date ($current); nothing to do."
+            exit 0
+          fi
+
+          branch="auto/monero-$latest"
+          if [ -n "$(gh pr list --state open --head "$branch" --json number --jq '.[].number')" ]; then
+            echo "An open PR already exists for $branch; nothing to do."
+            exit 0
+          fi
+
+          rm -rf /tmp/monero-src
+          git clone --depth 1 --branch "$latest_tag" https://github.com/monero-project/monero /tmp/monero-src
+
+          export GNUPGHOME="$(mktemp -d)"
+          gpg --import /tmp/monero-src/utils/gpg_keys/binaryfate.asc
+          gpg --import /tmp/monero-src/utils/gpg_keys/luigi1111.asc
+
+          cd /tmp/monero-src
+          verify_out="$(git verify-tag "$latest_tag" 2>&1)" || {
+            echo "GPG tag verification FAILED:" >&2
+            echo "$verify_out" >&2
+            exit 1
+          }
+          fpr_seen="$(echo "$verify_out" | grep -oE '[0-9A-F]{40}' | head -1)"
+          if [ "$fpr_seen" != "$fpr_binaryfate" ] && [ "$fpr_seen" != "$fpr_luigi1111" ]; then
+            echo "GPG tag verification signer NOT TRUSTED: $fpr_seen" >&2
+            exit 1
+          fi
+          echo "GPG tag verification OK, signer: $fpr_seen"
+          cd -
+
+          randomx_commit="$(git -C /tmp/monero-src ls-tree HEAD external/randomx | awk '{print $3}')"
+          rapidjson_commit="$(git -C /tmp/monero-src ls-tree HEAD external/rapidjson | awk '{print $3}')"
+          supercop_commit="$(git -C /tmp/monero-src ls-tree HEAD external/supercop | awk '{print $3}')"
+          trezorcommon_commit="$(git -C /tmp/monero-src ls-tree HEAD external/trezor-common | awk '{print $3}')"
+          echo "randomx=$randomx_commit rapidjson=$rapidjson_commit supercop=$supercop_commit trezor-common=$trezorcommon_commit"
+
+          main_sum="$(curl -fsSL "https://github.com/monero-project/monero/archive/refs/tags/${latest_tag}.tar.gz" | sha256sum | cut -d' ' -f1)"
+          randomx_sum="$(curl -fsSL "https://github.com/tevador/RandomX/archive/${randomx_commit}.tar.gz" | sha256sum | cut -d' ' -f1)"
+          rapidjson_sum="$(curl -fsSL "https://github.com/Tencent/rapidjson/archive/${rapidjson_commit}.tar.gz" | sha256sum | cut -d' ' -f1)"
+          supercop_sum="$(curl -fsSL "https://github.com/monero-project/supercop/archive/${supercop_commit}.tar.gz" | sha256sum | cut -d' ' -f1)"
+          trezorcommon_sum="$(curl -fsSL "https://github.com/trezor/trezor-common/archive/${trezorcommon_commit}.tar.gz" | sha256sum | cut -d' ' -f1)"
+
+          sed -i -E "s/^version=.*/version=$latest/" "$template"
+          sed -i -E "s/^revision=.*/revision=1/" "$template"
+          sed -i -E "s/^_randomx_commit=.*/_randomx_commit=$randomx_commit/" "$template"
+          sed -i -E "s/^_rapidjson_commit=.*/_rapidjson_commit=$rapidjson_commit/" "$template"
+          sed -i -E "s/^_supercop_commit=.*/_supercop_commit=$supercop_commit/" "$template"
+          sed -i -E "s/^_trezorcommon_commit=.*/_trezorcommon_commit=$trezorcommon_commit/" "$template"
+          sed -i -E "s/^checksum=.*/checksum=\"$main_sum $randomx_sum $rapidjson_sum $supercop_sum $trezorcommon_sum\"/" "$template"
+
+          rm -rf /tmp/monero-src "$GNUPGHOME"
+
+          echo "branch=$branch" >> "$GITHUB_OUTPUT"
+          echo "latest=$latest" >> "$GITHUB_OUTPUT"
+          echo "changed=1" >> "$GITHUB_OUTPUT"
+
+      - name: Commit and open PR
+        if: steps.update.outputs.changed == '1'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BRANCH: ${{ steps.update.outputs.branch }}
+          LATEST: ${{ steps.update.outputs.latest }}
+        run: |
+          set -euo pipefail
+          git config user.name "Zoa Hickenlooper"
+          git config user.email "zoa@router.sex"
+          git checkout -B "$BRANCH"
+          git add srcpkgs/monero/template
+          git commit -m "monero: update to $LATEST."
+          git push --force origin "$BRANCH"
+          gh pr create \
+            --base main \
+            --head "$BRANCH" \
+            --title "monero: update to $LATEST." \
+            --body "Automated update to monero $LATEST.
+
+          Release git tag GPG-verified against Monero's trusted signer set (binaryFate / luigi1111) before this PR was opened.
+
+          Release notes: https://github.com/monero-project/monero/releases/tag/v$LATEST"
