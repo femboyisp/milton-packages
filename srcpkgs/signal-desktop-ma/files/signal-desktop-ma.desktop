@@ -1,0 +1,9 @@
+[Desktop Entry]
+Name=Signal (Multi-Account)
+Comment=Private, simple messaging with friends and family
+Exec=signal-desktop-ma %U
+Terminal=false
+Type=Application
+Icon=signal-desktop-ma
+StartupWMClass=signal
+Categories=Network;InstantMessaging;Chat;
