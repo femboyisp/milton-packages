@@ -40,7 +40,18 @@ do_install() {
 	chmod 4755 ${DESTDIR}/usr/lib/signal-desktop-ma/chrome-sandbox
 
 	vmkdir usr/bin
-	ln -s /usr/lib/signal-desktop-ma/signal-desktop ${DESTDIR}/usr/bin/signal-desktop-ma
+	# Don't symlink straight to the binary: this fork's "default" account
+	# falls back to the shared ~/.config/Signal directory (same as the
+	# official Signal-Desktop package) unless --user-data-dir is set.
+	# Force a separate directory so this package can never collide with
+	# Signal-Desktop's data again -- confirmed during packaging that a
+	# shared profile touched by a newer schema version locks out any
+	# older app, which happened for real on the first real-world use.
+	cat <<-EOF > signal-desktop-ma
+	#!/bin/sh
+	exec /usr/lib/signal-desktop-ma/signal-desktop --user-data-dir="\$HOME/.config/Signal-MA" "\$@"
+	EOF
+	vbin signal-desktop-ma
 
 	vinstall ${FILESDIR}/signal-desktop-ma.desktop 644 usr/share/applications
 	for size in 16 24 32 48 64 128 256 512 1024; do
