@@ -1,0 +1,52 @@
+# Template file for 'signal-desktop-ma'
+# This repackages a prebuilt release asset from a personal fork
+# (vxfemboy/Signal-Desktop), not an audited upstream release -- pinned by
+# checksum only, no upstream signature is verified. The auto-update
+# workflow rewrites that checksum unattended on every release, which
+# establishes immutability but not identity/trust of future builds.
+#
+# This app's default account shares ~/.config/Signal with the separate
+# Signal-Desktop package (both use productName "Signal" upstream) --
+# deliberate: no --user-data-dir isolation is forced.
+pkgname=signal-desktop-ma
+version=8.21.0
+revision=1
+archs="x86_64"
+depends="at-spi2-core libsecret alsa-lib cairo gtk+3 libdrm libX11
+ libxcb libXcomposite libXdamage libXext libXfixes libxkbcommon
+ libXrandr libXScrnSaver pango nss libcurl dbus mesa xdg-utils
+ libglvnd expat"
+short_desc="Signal Private Messenger, multi-account fork (vxfemboy)"
+maintainer="Zoa Hickenlooper <zoa@router.sex>"
+license="AGPL-3.0-only"
+homepage="https://github.com/vxfemboy/Signal-Desktop"
+changelog="https://github.com/vxfemboy/Signal-Desktop/releases"
+distfiles="https://github.com/vxfemboy/Signal-Desktop/releases/download/v${version}-multiaccount/signal-desktop-multiaccount-v${version}-linux-x64.tar.gz"
+checksum=69ed78ae85b23cd8e14ab545e1d29eda2e980154e5b7e662529cad8f2b41e253
+nostrip=yes
+noshlibprovides=yes
+allow_unknown_shlibs=yes
+
+do_install() {
+	vmkdir usr/lib/signal-desktop-ma
+	# Upstream's tarball has a single top-level linux-unpacked/ directory,
+	# which xbps-src's extract hook flattens into $wrksrc itself when a
+	# tarball has exactly one top-level entry -- hence '*', not
+	# 'linux-unpacked/*'. If a future release ever ships more than one
+	# top-level entry, this build fails loudly (ERR trap) rather than
+	# silently producing a nested layout.
+	vcopy '*' usr/lib/signal-desktop-ma/
+
+	chmod 4755 ${DESTDIR}/usr/lib/signal-desktop-ma/chrome-sandbox
+
+	vmkdir usr/bin
+	ln -s /usr/lib/signal-desktop-ma/signal-desktop ${DESTDIR}/usr/bin/signal-desktop-ma
+
+	vinstall ${FILESDIR}/signal-desktop-ma.desktop 644 usr/share/applications
+	for size in 16 24 32 48 64 128 256 512 1024; do
+		vinstall ${FILESDIR}/icons/${size}x${size}.png 644 \
+			usr/share/icons/hicolor/${size}x${size}/apps signal-desktop-ma.png
+	done
+
+	vlicense LICENSE.electron.txt LICENSE
+}
