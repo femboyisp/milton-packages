@@ -1,4 +1,13 @@
 # Template file for 'signal-desktop-ma'
+# This repackages a prebuilt release asset from a personal fork
+# (vxfemboy/Signal-Desktop), not an audited upstream release -- pinned by
+# checksum only, no upstream signature is verified. The auto-update
+# workflow rewrites that checksum unattended on every release, which
+# establishes immutability but not identity/trust of future builds.
+#
+# This app's default account shares ~/.config/Signal with the separate
+# Signal-Desktop package (both use productName "Signal" upstream) --
+# deliberate: no --user-data-dir isolation is forced.
 pkgname=signal-desktop-ma
 version=8.21.0
 revision=1
@@ -20,6 +29,12 @@ allow_unknown_shlibs=yes
 
 do_install() {
 	vmkdir usr/lib/signal-desktop-ma
+	# Upstream's tarball has a single top-level linux-unpacked/ directory,
+	# which xbps-src's extract hook flattens into $wrksrc itself when a
+	# tarball has exactly one top-level entry -- hence '*', not
+	# 'linux-unpacked/*'. If a future release ever ships more than one
+	# top-level entry, this build fails loudly (ERR trap) rather than
+	# silently producing a nested layout.
 	vcopy '*' usr/lib/signal-desktop-ma/
 
 	chmod 4755 ${DESTDIR}/usr/lib/signal-desktop-ma/chrome-sandbox

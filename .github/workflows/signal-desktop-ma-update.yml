@@ -85,6 +85,6 @@ jobs:
             --title "signal-desktop-ma: update to $LATEST." \
             --body "Automated update to signal-desktop-ma $LATEST.
 
-          Checksum-pinned from the GitHub release tarball only.
+          Checksum-pinned from the GitHub release tarball only -- no upstream signature verification (this is a personal fork's CI-built release, not the upstream project's own).
 
           Release notes: https://github.com/vxfemboy/Signal-Desktop/releases/tag/v$LATEST-multiaccount"
