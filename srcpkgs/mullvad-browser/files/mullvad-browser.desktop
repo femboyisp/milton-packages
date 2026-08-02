@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=Mullvad Browser
+GenericName=Web Browser
+Comment=Privacy-focused web browser designed to minimize tracking and fingerprinting
+Exec=mullvad-browser %u
+Icon=mullvad-browser
+Categories=Network;WebBrowser;Security;
+StartupNotify=true
+StartupWMClass=Mullvad Browser
