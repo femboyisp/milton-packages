@@ -1,0 +1,57 @@
+# Template file for 'mullvad-browser'
+# Checksum cross-verified against Mullvad's own GPG-signed
+# sha256sums-signed-build.txt for this release (not just self-computed).
+# A per-asset detached signature is also published
+# (mullvad-browser-linux-x86_64-${version}.tar.xz.asc) for anyone who
+# wants to verify further -- not checked automatically here or by the
+# auto-update workflow, which is checksum-pinned only.
+pkgname=mullvad-browser
+version=15.0.19
+revision=1
+archs="x86_64"
+depends="dbus-glib gtk+3 libXt nss"
+short_desc="Privacy-focused Firefox-based browser by Mullvad"
+maintainer="Zoa Hickenlooper <zoa@router.sex>"
+license="MPL-2.0"
+homepage="https://mullvad.net/en/browser"
+changelog="https://github.com/mullvad/mullvad-browser/releases"
+distfiles="https://github.com/mullvad/mullvad-browser/releases/download/${version}/mullvad-browser-linux-x86_64-${version}.tar.xz"
+checksum=f556efec0f096ab62d4f42e5d5bbde426c227fbfc8562aba81e33132a785f92e
+nostrip=yes
+noshlibprovides=yes
+
+do_install() {
+	vmkdir usr/lib/mullvad-browser
+	vcopy 'Browser/*' usr/lib/mullvad-browser/
+
+	# Tell the launcher this is a system-wide install so it keeps the
+	# user profile in $HOME/.mullvad-browser instead of trying to write
+	# it into this read-only prefix.
+	touch ${DESTDIR}/usr/lib/mullvad-browser/is-packaged-app
+
+	# Upstream's tarball ships every file root-only (0700/0600, likely
+	# intended for single-user extraction into $HOME). Open it up so any
+	# local user can read/execute the installed browser.
+	find ${DESTDIR}/usr/lib/mullvad-browser -type d -exec chmod 755 {} +
+	find ${DESTDIR}/usr/lib/mullvad-browser -type f -perm -u+x -exec chmod 755 {} +
+	find ${DESTDIR}/usr/lib/mullvad-browser -type f ! -perm -u+x -exec chmod 644 {} +
+
+	vmkdir usr/bin
+	ln -s /usr/lib/mullvad-browser/start-mullvad-browser ${DESTDIR}/usr/bin/mullvad-browser
+
+	vinstall ${FILESDIR}/mullvad-browser.desktop 644 usr/share/applications
+	vinstall Browser/browser/chrome/icons/default/default128.png 644 usr/share/pixmaps mullvad-browser.png
+
+	# The bundled updater can't write to this root-owned install prefix,
+	# so update checks just dead-end into a "please download manually"
+	# nag. Disable it via enterprise policy; this package's own
+	# auto-update workflow is the intended update path instead.
+	vmkdir usr/lib/mullvad-browser/distribution
+	cat <<-EOF > ${DESTDIR}/usr/lib/mullvad-browser/distribution/policies.json
+	{
+		"policies": {
+			"DisableAppUpdate": true
+		}
+	}
+	EOF
+}
