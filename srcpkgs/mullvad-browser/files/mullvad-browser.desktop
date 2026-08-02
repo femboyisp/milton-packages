@@ -6,5 +6,6 @@ Comment=Privacy-focused web browser designed to minimize tracking and fingerprin
 Exec=/usr/bin/mullvad-browser %u
 Icon=mullvad-browser
 Categories=Network;WebBrowser;Security;
+MimeType=text/html;text/xml;application/xhtml+xml;application/xml;application/rss+xml;application/rdf+xml;x-scheme-handler/http;x-scheme-handler/https;
 StartupNotify=true
 StartupWMClass=Mullvad Browser

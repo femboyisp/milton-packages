@@ -1,4 +1,10 @@
 # Template file for 'mullvad-browser'
+# Checksum cross-verified against Mullvad's own GPG-signed
+# sha256sums-signed-build.txt for this release (not just self-computed).
+# A per-asset detached signature is also published
+# (mullvad-browser-linux-x86_64-${version}.tar.xz.asc) for anyone who
+# wants to verify further -- not checked automatically here or by the
+# auto-update workflow, which is checksum-pinned only.
 pkgname=mullvad-browser
 version=15.0.19
 revision=1
@@ -35,4 +41,17 @@ do_install() {
 
 	vinstall ${FILESDIR}/mullvad-browser.desktop 644 usr/share/applications
 	vinstall Browser/browser/chrome/icons/default/default128.png 644 usr/share/pixmaps mullvad-browser.png
+
+	# The bundled updater can't write to this root-owned install prefix,
+	# so update checks just dead-end into a "please download manually"
+	# nag. Disable it via enterprise policy; this package's own
+	# auto-update workflow is the intended update path instead.
+	vmkdir usr/lib/mullvad-browser/distribution
+	cat <<-EOF > ${DESTDIR}/usr/lib/mullvad-browser/distribution/policies.json
+	{
+		"policies": {
+			"DisableAppUpdate": true
+		}
+	}
+	EOF
 }

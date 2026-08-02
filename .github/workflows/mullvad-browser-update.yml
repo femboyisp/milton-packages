@@ -83,6 +83,6 @@ jobs:
             --title "mullvad-browser: update to $LATEST." \
             --body "Automated update to mullvad-browser $LATEST.
 
-          Checksum-pinned from the GitHub release tarball only -- no GPG signature verification, though Mullvad does publish a signed sha256sums file for this release if that's ever worth adding.
+          Checksum-pinned from the GitHub release tarball only -- no GPG signature verification. Mullvad publishes a per-asset detached signature (the .tar.xz.asc alongside this release's tarball) if that's ever worth adding to this workflow.
 
           Release notes: https://github.com/mullvad/mullvad-browser/releases/tag/$LATEST"
