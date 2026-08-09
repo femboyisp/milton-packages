@@ -1,6 +1,6 @@
 # Template file for 'signal-cli'
 pkgname=signal-cli
-version=0.14.6
+version=0.14.7
 revision=1
 archs="x86_64"
 depends="openjdk25-jre"
@@ -10,7 +10,7 @@ license="GPL-3.0-or-later"
 homepage="https://github.com/AsamK/signal-cli"
 changelog="https://github.com/AsamK/signal-cli/releases"
 distfiles="https://github.com/AsamK/signal-cli/releases/download/v${version}/signal-cli-${version}.tar.gz"
-checksum=e90f4faea709b3c0a55909646a2b94289b9779ba9c8fd5c6eaa847d3f67312eb
+checksum=0e1eefdf4a2109edf7c899c9d1667167c54ac12c3ec824f27db7c1dac4fa7506
 
 do_install() {
 	vmkdir usr/lib/signal-cli
