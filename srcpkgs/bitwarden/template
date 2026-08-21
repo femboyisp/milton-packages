@@ -1,6 +1,6 @@
 # Template file for 'bitwarden'
 pkgname=bitwarden
-version=2026.7.0
+version=2026.8.0
 revision=1
 archs="x86_64"
 hostmakedepends="tar"
@@ -20,11 +20,11 @@ allow_unknown_shlibs=yes
 case "$XBPS_TARGET_MACHINE" in
 	x86_64)
 		distfiles="https://github.com/bitwarden/clients/releases/download/desktop-v${version}/bitwarden_${version}_x64.tar.gz"
-		checksum=c5d6d050eb3c3f269596f9556375d222924e4911c0473ea4d62497bf911346e0
+		checksum=d88fd894e4b1c58bde3efb51b7b1bd8fab6c6a46be632b0b9cdadcc00147790e
 		;;
 	aarch64)
 		distfiles="https://github.com/bitwarden/clients/releases/download/desktop-v${version}/bitwarden_${version}_arm64.tar.gz"
-		checksum=ba666bd2b9fad671ae5dd82b8231ab75a2f6a7a3c40e738e795069212e7b2e86
+		checksum=5962b5dd1bfe19b3c198a6b4157c4431efe078e573217bffcaafa71147476ebe
 		;;
 	*)
 		broken="bitwarden is only available for x86_64 and aarch64"
