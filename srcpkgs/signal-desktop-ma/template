@@ -9,7 +9,7 @@
 # Signal-Desktop package (both use productName "Signal" upstream) --
 # deliberate: no --user-data-dir isolation is forced.
 pkgname=signal-desktop-ma
-version=8.21.0
+version=8.24.1
 revision=1
 archs="x86_64"
 depends="at-spi2-core libsecret alsa-lib cairo gtk+3 libdrm libX11
@@ -22,7 +22,7 @@ license="AGPL-3.0-only"
 homepage="https://github.com/vxfemboy/Signal-Desktop"
 changelog="https://github.com/vxfemboy/Signal-Desktop/releases"
 distfiles="https://github.com/vxfemboy/Signal-Desktop/releases/download/v${version}-multiaccount/signal-desktop-multiaccount-v${version}-linux-x64.tar.gz"
-checksum=69ed78ae85b23cd8e14ab545e1d29eda2e980154e5b7e662529cad8f2b41e253
+checksum=e6d1f74b1cc397d7ee72a89015d27c0572ed6d725c28829d90cb77092bfcb414
 nostrip=yes
 noshlibprovides=yes
 allow_unknown_shlibs=yes
