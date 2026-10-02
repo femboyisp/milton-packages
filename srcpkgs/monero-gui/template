@@ -1,7 +1,7 @@
 # Template file for 'monero-gui'
 pkgname=monero-gui
 version=0.18.5.2
-revision=1
+revision=2
 _quirc_commit=927d680904dc95fdff4cd9d022eb374b438ff8f2
 _monero_commit=4f92268d7c16741cfb41e5bbe2aa46cc260a9ea5
 _randomx_commit=6c4340ba4561aec9a3611c1aedf9931239777fb3
