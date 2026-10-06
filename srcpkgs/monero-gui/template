@@ -1,10 +1,10 @@
 # Template file for 'monero-gui'
 pkgname=monero-gui
-version=0.18.5.2
+version=0.18.5.3
 revision=1
 _quirc_commit=927d680904dc95fdff4cd9d022eb374b438ff8f2
-_monero_commit=4f92268d7c16741cfb41e5bbe2aa46cc260a9ea5
-_randomx_commit=6c4340ba4561aec9a3611c1aedf9931239777fb3
+_monero_commit=22578c3f7d7b4b6dd85ff7daa42a827d97cc53d0
+_randomx_commit=12f2c2ffe2108d6cf54c391fee33c8bc3646cdab
 _rapidjson_commit=129d19ba7f496df5e33658527a7158c79b99c21c
 _supercop_commit=633500ad8c8759995049ccd022107d1fa8a1bbc9
 _trezorcommon_commit=bff7fdfe436c727982cc553bdfb29a9021b423b0
@@ -29,13 +29,7 @@ distfiles="https://github.com/monero-project/monero-gui/archive/refs/tags/v${ver
  https://github.com/Tencent/rapidjson/archive/${_rapidjson_commit}.tar.gz>rapidjson-${_rapidjson_commit}.tar.gz
  https://github.com/monero-project/supercop/archive/${_supercop_commit}.tar.gz>supercop-${_supercop_commit}.tar.gz
  https://github.com/trezor/trezor-common/archive/${_trezorcommon_commit}.tar.gz>trezor-common-${_trezorcommon_commit}.tar.gz"
-checksum="1bbb7c016e334be46d91fe2031f41b190beb8ff3d8b2b6a0d5eef9f9be331a00
- a980041c34f8ad9472f57f509ec1c54e1dfd07e843f4419285f5715423410140
- 4fdd15401af04e1ce84dcae40c8c114320d1cc9b449db25c0d57efa4b4054881
- d98a8885968d736b36657fa5264786d4947c3fcf433c873802678527e6db3584
- 44b007d419ac21b6affec58991e865ee572346ead19b73cf1c3e4e11c7a81273
- b973b9d8269ec4d97c3c3443f0dad96d09f72b1b30e616e0947557adbdbb03f7
- 951f4df9dfb2466698e0b0a1b52ec27e4d6f13538ff22f1d6c0ae87f9d07c1b6"
+checksum="a02bdf98840f0ecce38f44e54a197c78675feea7c5fbcbe63a84fe0fa87e2729 a980041c34f8ad9472f57f509ec1c54e1dfd07e843f4419285f5715423410140 69fac1340a76ba501f09cae056ac75ea6cdf9cfdc1ddc03820b42b14c3c6deb6 887513a538044c50ad0fb8a486c584704ddd7d533d9093731dd4dc3109ab16cd 44b007d419ac21b6affec58991e865ee572346ead19b73cf1c3e4e11c7a81273 b973b9d8269ec4d97c3c3443f0dad96d09f72b1b30e616e0947557adbdbb03f7 951f4df9dfb2466698e0b0a1b52ec27e4d6f13538ff22f1d6c0ae87f9d07c1b6"
 skip_extraction="quirc-${_quirc_commit}.tar.gz
  monero-core-${_monero_commit}.tar.gz
  randomx-${_randomx_commit}.tar.gz
