@@ -1,6 +1,6 @@
 # Template file for 'trezor-suite'
 pkgname=trezor-suite
-version=26.7.4
+version=26.10.3
 revision=1
 archs="x86_64 aarch64"
 hostmakedepends="tar"
@@ -23,11 +23,11 @@ skiprdeps="/usr/lib/trezor-suite/resources/app.asar.unpacked"
 case "$XBPS_TARGET_MACHINE" in
 	x86_64)
 		distfiles="https://github.com/trezor/trezor-suite/releases/download/v${version}/Trezor-Suite-${version}-linux-x86_64.AppImage"
-		checksum="666f58dcab10596f626fe22bc7df4e4027226f21fe5dc14bc5d66a5c0180dd3b"
+		checksum="413b1a6fc4b36ef6c767b04df480b6a1fa0d190236e433f7568aac2993ffcb61"
 		;;
 	aarch64)
 		distfiles="https://github.com/trezor/trezor-suite/releases/download/v${version}/Trezor-Suite-${version}-linux-arm64.AppImage"
-		checksum="c4412b73dbd457b55928c364ae7dc81a27f8824412ef74e1c14589df625d1512"
+		checksum="3d861f5db246a11dc957afe811dc811c776e56e49cbf7c350aeae76f501f7999"
 		;;
 	*)
 		broken="trezor-suite is only available for x86_64 and aarch64"
