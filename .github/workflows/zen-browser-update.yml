@@ -29,7 +29,7 @@ jobs:
           template="srcpkgs/zen-browser/template"
 
           current="$(grep -oP '^version=\K.*' "$template")"
-          latest="$(curl -fsSL https://api.github.com/repos/zen-browser/desktop/releases/latest | jq -r .tag_name)"
+          latest="$(curl -fsSL -H "Authorization: Bearer $GITHUB_TOKEN" https://api.github.com/repos/zen-browser/desktop/releases/latest | jq -r .tag_name)"
           echo "current=$current latest=$latest"
 
           if [ -z "$latest" ] || [ "$latest" = "null" ]; then
@@ -45,7 +45,7 @@ jobs:
           # Skip only if an open PR already exists for this version. A leftover
           # branch from a previous run (e.g. one that failed before opening the
           # PR) must not block us — we force-push it below.
-          if [ -n "$(gh pr list --state open --head "$branch" --json number --jq '.[].number')" ]; then
+          if gh pr list --state open --json headRefName --jq '.[].headRefName' | grep -qx "$branch"; then
             echo "An open PR already exists for $branch; nothing to do."
             exit 0
           fi

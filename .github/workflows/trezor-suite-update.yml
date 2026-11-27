@@ -30,7 +30,7 @@ jobs:
           trezor_fpr="EB483B26B078A4AA1B6F425EE21B6950A2ECB65C"
 
           current="$(grep -oP '^version=\K.*' "$template")"
-          latest_tag="$(curl -fsSL https://api.github.com/repos/trezor/trezor-suite/releases/latest | jq -r .tag_name)"
+          latest_tag="$(curl -fsSL -H "Authorization: Bearer $GITHUB_TOKEN" https://api.github.com/repos/trezor/trezor-suite/releases/latest | jq -r .tag_name)"
           latest="${latest_tag#v}"
           echo "current=$current latest=$latest"
 
@@ -44,7 +44,7 @@ jobs:
           fi
 
           branch="auto/trezor-suite-$latest"
-          if [ -n "$(gh pr list --state open --head "$branch" --json number --jq '.[].number')" ]; then
+          if gh pr list --state open --json headRefName --jq '.[].headRefName' | grep -qx "$branch"; then
             echo "An open PR already exists for $branch; nothing to do."
             exit 0
           fi

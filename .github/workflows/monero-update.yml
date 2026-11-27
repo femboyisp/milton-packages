@@ -28,9 +28,10 @@ jobs:
           template="srcpkgs/monero/template"
           fpr_binaryfate="81AC591FE9C4B65C5806AFC3F0AF4D462A0BDF92"
           fpr_luigi1111="8777AB8F778EE89487A2F8E7F4ACA0183641E010"
+          fpr_tobtoht="E87BD921CDD885C9D78A38C5E45B10DD027D2472"
 
           current="$(grep -oP '^version=\K.*' "$template")"
-          latest_tag="$(curl -fsSL https://api.github.com/repos/monero-project/monero/releases/latest | jq -r .tag_name)"
+          latest_tag="$(curl -fsSL -H "Authorization: Bearer $GITHUB_TOKEN" https://api.github.com/repos/monero-project/monero/releases/latest | jq -r .tag_name)"
           latest="${latest_tag#v}"
           echo "current=$current latest=$latest"
 
@@ -44,7 +45,7 @@ jobs:
           fi
 
           branch="auto/monero-$latest"
-          if [ -n "$(gh pr list --state open --head "$branch" --json number --jq '.[].number')" ]; then
+          if gh pr list --state open --json headRefName --jq '.[].headRefName' | grep -qx "$branch"; then
             echo "An open PR already exists for $branch; nothing to do."
             exit 0
           fi
@@ -53,8 +54,11 @@ jobs:
           git clone --depth 1 --branch "$latest_tag" https://github.com/monero-project/monero /tmp/monero-src
 
           export GNUPGHOME="$(mktemp -d)"
-          gpg --import /tmp/monero-src/utils/gpg_keys/binaryfate.asc
-          gpg --import /tmp/monero-src/utils/gpg_keys/luigi1111.asc
+          for key in /tmp/monero-src/utils/gpg_keys/*.asc; do
+            gpg --import "$key" || true
+          done
+          gpg --keyserver hkps://keyserver.ubuntu.com --recv-keys "$fpr_tobtoht" || \
+          gpg --keyserver hkps://keys.openpgp.org --recv-keys "$fpr_tobtoht" || true
 
           cd /tmp/monero-src
           verify_out="$(git verify-tag --raw "$latest_tag" 2>&1)" || {
@@ -67,7 +71,7 @@ jobs:
             echo "GPG tag verification FAILED: VALIDSIG line not found" >&2
             exit 1
           fi
-          if [ "$fpr_seen" != "$fpr_binaryfate" ] && [ "$fpr_seen" != "$fpr_luigi1111" ]; then
+          if [ "$fpr_seen" != "$fpr_binaryfate" ] && [ "$fpr_seen" != "$fpr_luigi1111" ] && [ "$fpr_seen" != "$fpr_tobtoht" ]; then
             echo "GPG tag verification signer NOT TRUSTED: ${fpr_seen}" >&2
             exit 1
           fi

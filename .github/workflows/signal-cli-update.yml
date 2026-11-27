@@ -28,7 +28,7 @@ jobs:
           template="srcpkgs/signal-cli/template"
 
           current="$(grep -oP '^version=\K.*' "$template")"
-          release_json="$(curl -fsSL "https://api.github.com/repos/AsamK/signal-cli/releases/latest")"
+          release_json="$(curl -fsSL -H "Authorization: Bearer $GITHUB_TOKEN" "https://api.github.com/repos/AsamK/signal-cli/releases/latest")"
           latest_tag="$(echo "$release_json" | jq -r '.tag_name')"
           latest="${latest_tag#v}"
           echo "current=$current latest=$latest"
@@ -49,7 +49,7 @@ jobs:
           fi
 
           branch="auto/signal-cli-$latest"
-          if [ -n "$(gh pr list --state open --head "$branch" --json number --jq '.[].number')" ]; then
+          if gh pr list --state open --json headRefName --jq '.[].headRefName' | grep -qx "$branch"; then
             echo "An open PR already exists for $branch; nothing to do."
             exit 0
           fi

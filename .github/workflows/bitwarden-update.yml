@@ -28,7 +28,8 @@ jobs:
           template="srcpkgs/bitwarden/template"
 
           current="$(grep -oP '^version=\K.*' "$template")"
-          latest_tag="$(curl -fsSL "https://api.github.com/repos/bitwarden/clients/releases?per_page=30" | jq -r '[.[] | select(.tag_name | startswith("desktop-v"))][0].tag_name')"
+          release_json="$(curl -fsSL -H "Authorization: Bearer $GITHUB_TOKEN" "https://api.github.com/repos/bitwarden/clients/releases?per_page=30")"
+          latest_tag="$(echo "$release_json" | jq -r '[.[] | select(.tag_name | startswith("desktop-v"))][0].tag_name')"
           latest="${latest_tag#desktop-v}"
           echo "current=$current latest=$latest"
 
@@ -42,18 +43,25 @@ jobs:
           fi
 
           branch="auto/bitwarden-$latest"
-          if [ -n "$(gh pr list --state open --head "$branch" --json number --jq '.[].number')" ]; then
+          if gh pr list --state open --json headRefName --jq '.[].headRefName' | grep -qx "$branch"; then
             echo "An open PR already exists for $branch; nothing to do."
             exit 0
           fi
 
-          base="https://github.com/bitwarden/clients/releases/download/desktop-v$latest"
-          sum_x86_64="$(curl -fsSL "$base/bitwarden_${latest}_x64.tar.gz" | sha256sum | cut -d' ' -f1)"
-          sum_aarch64="$(curl -fsSL "$base/bitwarden_${latest}_arm64.tar.gz" | sha256sum | cut -d' ' -f1)"
+          rel="$(echo "$release_json" | jq -r --arg tag "$latest_tag" '.[] | select(.tag_name == $tag)')"
+          url_x86_64="$(echo "$rel" | jq -r '.assets[] | select(.name | test("(bit-)?bitwarden_.*_x64\\.tar\\.gz$")) | .browser_download_url' | head -n 1)"
+          url_aarch64="$(echo "$rel" | jq -r '.assets[] | select(.name | test("(bit-)?bitwarden_.*_arm64\\.tar\\.gz$")) | .browser_download_url' | head -n 1)"
+          file_x86_64="$(basename "$url_x86_64")"
+          file_aarch64="$(basename "$url_aarch64")"
+
+          sum_x86_64="$(curl -fsSL "$url_x86_64" | sha256sum | cut -d' ' -f1)"
+          sum_aarch64="$(curl -fsSL "$url_aarch64" | sha256sum | cut -d' ' -f1)"
           echo "x86_64=$sum_x86_64 aarch64=$sum_aarch64"
 
           sed -i -E "s/^version=.*/version=$latest/" "$template"
           sed -i -E "s/^revision=.*/revision=1/" "$template"
+          sed -i -E "s|download/desktop-v\\$\{version\}/[^\"']*_x64\\.tar\\.gz|download/desktop-v\${version}/$file_x86_64|" "$template"
+          sed -i -E "s|download/desktop-v\\$\{version\}/[^\"']*_arm64\\.tar\\.gz|download/desktop-v\${version}/$file_aarch64|" "$template"
 
           awk -v x="$sum_x86_64" -v a="$sum_aarch64" '
             /_x64\.tar\.gz"$/ { arch="x86_64" }
