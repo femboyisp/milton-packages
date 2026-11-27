@@ -60,29 +60,9 @@ post_patch() {
 	vsed -i 's/set(CMAKE_CXX_STANDARD 14)/set(CMAKE_CXX_STANDARD 17)/' monero/CMakeLists.txt
 }
 
-post_install() {
+do_install() {
+	vbin build/bin/monero-wallet-gui
 	vlicense LICENSE
-
-	# monero-gui vendors and builds its own copy of the monero core as an
-	# internal subdirectory (see post_extract above). monero's own
-	# CMakeLists.txt unconditionally installs its own daemon/CLI binaries
-	# and a devel header alongside monero-wallet-gui; those are identical
-	# in path to what the separate 'monero' package ships, and would
-	# conflict with it. This package's interface is only
-	# /usr/bin/monero-wallet-gui, so prune everything else the vendored
-	# core's install rules add, to prevent any conflict with 'monero'.
-	rm -f ${DESTDIR}/usr/bin/monero-blockchain-* \
-		${DESTDIR}/usr/bin/monero-gen-ssl-cert \
-		${DESTDIR}/usr/bin/monero-gen-trusted-multisig \
-		${DESTDIR}/usr/bin/monero-wallet-cli \
-		${DESTDIR}/usr/bin/monero-wallet-rpc \
-		${DESTDIR}/usr/bin/monerod
-	rm -rf ${DESTDIR}/usr/include/wallet
-	rm -f ${DESTDIR}/usr/lib/libeasylogging.a \
-		${DESTDIR}/usr/lib/libepee.a \
-		${DESTDIR}/usr/lib/libepee_readline.a \
-		${DESTDIR}/usr/lib/liblmdb.a
-
 	vinstall share/org.getmonero.Monero.desktop 644 usr/share/applications
 	for size in 16 24 32 48 64 96 128 256; do
 		vinstall images/appicons/${size}x${size}.png 644 \

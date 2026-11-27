@@ -1,0 +1,54 @@
+Fix PROTOBUF_HAS_ABSEIL detection against current protobuf.
+
+Same issue and fix as srcpkgs/monero/patches/protobuf-abseil-detection.patch
+-- monero-gui vendors its own internal copy of the monero core (see
+post_extract() in the template) at monero/, including this exact file,
+so it needs the identical fix.
+
+cmake/CheckTrezor.cmake gates monero's own absl::string_view overload of
+get_message_wire_number() (which exists precisely to handle protobuf's
+Descriptor::name()/full_name()/etc. now returning absl::string_view)
+behind `Protobuf_VERSION VERSION_GREATER_EQUAL 22.0`.
+
+Protobuf_VERSION, as set by CMake's bundled FindProtobuf.cmake, is parsed
+from `protoc --version`. Current protobuf releases (confirmed: 35.1)
+report that on a decoupled generator-version axis distinct from the
+library release version -- "libprotoc 7.35.1" rather than "35.1" -- so
+Protobuf_VERSION becomes 7.35.1, and 7 < 22 makes the check silently fail
+even though this protobuf's Descriptor::name() unconditionally returns
+absl::string_view. The result: none of the device_trezor call sites that
+pass a `.name()` result to get_message_wire_number() find a matching
+overload, and the build fails with "no matching function for call to
+'hw::trezor::MessageMapper::get_message_wire_number(absl::string_view)'".
+
+Fix: probe the actual API surface at configure time instead of trusting
+any version number scheme, so this keeps working regardless of how
+protobuf numbers future releases.
+
+--- a/monero/cmake/CheckTrezor.cmake
++++ b/monero/cmake/CheckTrezor.cmake
+@@ -55,7 +55,24 @@
+         set(Protobuf_FOUND 1)  # override found if all rquired info was provided by variables
+     endif()
+
+-    if (Protobuf_VERSION VERSION_GREATER_EQUAL 22.0)
++    # Protobuf_VERSION (as set by CMake's bundled FindProtobuf.cmake) is
++    # parsed from `protoc --version`, which newer protobuf releases report
++    # on a decoupled generator-version axis (e.g. "libprotoc 7.35.1") that
++    # no longer tracks the library release version (e.g. "35.1") this
++    # comparison was written against -- so a plain VERSION_GREATER_EQUAL
++    # check silently stops detecting abseil support on current protobuf.
++    # Probe the actual API surface instead of trusting any version number.
++    include(CheckCXXSourceCompiles)
++    set(CMAKE_REQUIRED_INCLUDES ${Protobuf_INCLUDE_DIR})
++    check_cxx_source_compiles("
++        #include <google/protobuf/descriptor.h>
++        #include <type_traits>
++        int main() {
++            static_assert(std::is_same<decltype(std::declval<google::protobuf::Descriptor>().name()), absl::string_view>::value, \"\");
++            return 0;
++        }
++    " PROTOBUF_DESCRIPTOR_NAME_RETURNS_ABSL_STRING_VIEW)
++    if (PROTOBUF_DESCRIPTOR_NAME_RETURNS_ABSL_STRING_VIEW)
+         add_definitions(-DPROTOBUF_HAS_ABSEIL)
+     endif()
