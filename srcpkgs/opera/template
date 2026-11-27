@@ -1,6 +1,6 @@
 # Template file for 'opera'
 pkgname=opera
-version=136.0.6008.80
+version=140.0.6074.36
 revision=1
 archs="x86_64 aarch64"
 create_wrksrc=yes
@@ -15,11 +15,11 @@ nostrip=yes
 case "$XBPS_TARGET_MACHINE" in
 x86_64*)
 	distfiles="https://rpm.opera.com/rpm/opera_stable-${version}-linux-release-x64-signed.rpm"
-	checksum=c56c320bb4d3ae5cebebd0d7dced0dfb4dc9e65e8c7bd6af592376b16a315693
+	checksum=181836d80d4abf24743860ca4d077fa8f044e8c89f3c203a0dded042168a5d5f
 	;;
 aarch64*)
 	distfiles="https://rpm.opera.com/rpm/opera_stable-${version}-linux-release-arm64-signed.rpm"
-	checksum=34c0fbea52036dafdd38e4b0277cf3712c6f822523c8c34a78158df71e4df5ff
+	checksum=99abe1a167d73949377da0e7d074986cffb20aa93f32ece14f1b06ec8acf645e
 	;;
 *)
 	broken="No distfiles available for this target"
